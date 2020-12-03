@@ -134,6 +134,14 @@ NOTES:
 
 
 #endif
+void bin(unsigned n)
+{
+    unsigned i;
+    for (i = 1 << 31; i > 0; i = i / 2)
+        (n & i) ? printf("1") : printf("0");
+    printf("\n");
+}
+
 //1
 /* 
  * bitXor - x^y using only ~ and & 
@@ -143,7 +151,7 @@ NOTES:
  *   Rating: 1
  */
 int bitXor(int x, int y) {
-  return 2;
+  return ~(x & y) & ~(~x & ~y);
 }
 /* 
  * tmin - return minimum two's complement integer 
@@ -152,9 +160,7 @@ int bitXor(int x, int y) {
  *   Rating: 1
  */
 int tmin(void) {
-
-  return 2;
-
+  return 1 << 31;
 }
 //2
 /*
@@ -165,7 +171,7 @@ int tmin(void) {
  *   Rating: 1
  */
 int isTmax(int x) {
-  return 2;
+  return !!(x + 1) & !(~((x + 1) ^ x));
 }
 /* 
  * allOddBits - return 1 if all odd-numbered bits in word set to 1
@@ -176,7 +182,12 @@ int isTmax(int x) {
  *   Rating: 2
  */
 int allOddBits(int x) {
-  return 2;
+  int temp = 2;
+  temp += temp << 2;
+  temp += temp << 4;
+  temp += temp << 8;
+  temp += temp << 16;
+  return !(temp ^ (temp & x));
 }
 /* 
  * negate - return -x 
@@ -186,7 +197,7 @@ int allOddBits(int x) {
  *   Rating: 2
  */
 int negate(int x) {
-  return 2;
+   return ~ (x + ~0);
 }
 //3
 /* 
@@ -199,7 +210,7 @@ int negate(int x) {
  *   Rating: 3
  */
 int isAsciiDigit(int x) {
-  return 2;
+  return (!((x & (~15)) ^ (3 << 4))) & (!(x & 8) | !(x & 6));
 }
 /* 
  * conditional - same as x ? y : z 
@@ -208,8 +219,8 @@ int isAsciiDigit(int x) {
  *   Max ops: 16
  *   Rating: 3
  */
-int conditional(int x, int y, int z) {
-  return 2;
+int conditional(int x, int y, int z) {  
+  return ((!x + ~0) & y) + ((~(!x + ~0)) & z);
 }
 /* 
  * isLessOrEqual - if x <= y  then return 1, else return 0 
@@ -219,7 +230,16 @@ int conditional(int x, int y, int z) {
  *   Rating: 3
  */
 int isLessOrEqual(int x, int y) {
-  return 2;
+/* when y > 0, x < 0 return 1
+ * when y < 0, x > 0 return 0
+ * else return y - x >= 0
+ */
+  // bin(!((y + (~ (x + ~0))) & (1 << 31)));
+  int px = !(x & (1 << 31));
+  int py = !(y & (1 << 31));
+  int nxpy = (!px) & py;
+  int pxny = px & (!py);
+  return (!pxny) & ((nxpy) | (!((y + (~ (x + ~0))) & (1 << 31))));
 }
 //4
 /* 
@@ -231,7 +251,10 @@ int isLessOrEqual(int x, int y) {
  *   Rating: 4 
  */
 int logicalNeg(int x) {
-  return 2;
+  int top1 = 1 << 31;
+  int px = ~((x & top1) >> 31) & 1;
+  int overflow = (~top1 + x);
+  return px & ~((overflow & top1) >> 31) & 1;
 }
 /* howManyBits - return the minimum number of bits required to represent x in
  *             two's complement
@@ -246,7 +269,27 @@ int logicalNeg(int x) {
  *  Rating: 4
  */
 int howManyBits(int x) {
-  return 0;
+  int sign_mask = x >> 31; // 1111 if neg, 0000 if pos
+  int bit0, bit1, bit2, bit4, bit8, bit16;
+  x = (sign_mask & ~x) + (~sign_mask & x);
+  bit16 = !!(x >> 16) << 4;
+  x = x >> bit16;
+    
+  bit8 = !!(x >> 8) << 3;
+  x = x >> bit8;
+    
+  bit4 = !!(x >> 4) << 2;  
+  x = x >> bit4;
+    
+  bit2 = !!(x >> 2) << 1;
+  x = x >> bit2;
+    
+  bit1 = !!(x >> 1);
+  x = x >> bit1;
+    
+  bit0 = x;
+
+  return bit16 + bit8 + bit4 + bit2 + bit1 + bit0 + 1;
 }
 //float
 /* 
