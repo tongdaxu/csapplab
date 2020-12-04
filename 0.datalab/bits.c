@@ -134,14 +134,6 @@ NOTES:
 
 
 #endif
-void bin(unsigned n)
-{
-    unsigned i;
-    for (i = 1 << 31; i > 0; i = i / 2)
-        (n & i) ? printf("1") : printf("0");
-    printf("\n");
-}
-
 //1
 /* 
  * bitXor - x^y using only ~ and & 
@@ -304,7 +296,29 @@ int howManyBits(int x) {
  *   Rating: 4
  */
 unsigned floatScale2(unsigned uf) {
-  return 2;
+  int exp, frac, exp0s, exp1s, fracmask, expmask;
+
+  fracmask = ~((1 << 31) >> 8);
+  expmask = (255 << 23);
+
+  exp = expmask & uf;
+  frac = fracmask & uf;
+  exp0s = !exp;
+  exp1s = !(exp ^ expmask);
+
+  if (exp1s){
+      return uf;
+  }
+  if (exp0s){
+      int beyond0 = frac & (1 << 22);
+      frac = frac << 1;
+      if (beyond0){
+          return ((uf + (1 << 23)) & ~fracmask) | frac;
+      } else {
+          return (uf & ~fracmask) | frac;
+      }
+  }
+  return uf + (1 << 23);
 }
 /* 
  * floatFloat2Int - Return bit-level equivalent of expression (int) f
@@ -319,7 +333,39 @@ unsigned floatScale2(unsigned uf) {
  *   Rating: 4
  */
 int floatFloat2Int(unsigned uf) {
-  return 2;
+
+  int fracmask = ~((1 << 31) >> 8);
+  int expmask = (255 << 23);
+  int exp = expmask & uf;
+  int frac = fracmask & uf;
+  int exp0s = !exp;
+  int exp1s = !(exp ^ expmask);
+  int minus = !!((1 << 31) & uf);
+  if (exp1s){
+      return 0x80000000u;
+  }
+
+  if (exp0s){
+      return 0;
+  } else {
+      int e = (exp >> 23) - 127;
+      int r = (1 << e) + (frac >> (23 - e));
+
+      if (e & (1 << 31)){
+          return 0;
+      }
+      if (e & (1 << 31) >> 26){
+          // 0x80000000 is a very clever default value
+          return 0x80000000u;
+      }
+      
+      if (minus){
+          return ~ (r + ~0);
+      } else {
+          return r;
+      }
+      
+  }
 }
 /* 
  * floatPower2 - Return bit-level equivalent of the expression 2.0^x
@@ -335,5 +381,15 @@ int floatFloat2Int(unsigned uf) {
  *   Rating: 4
  */
 unsigned floatPower2(int x) {
-    return 2;
+    if (x < -149){
+        return 0;
+    } else if (x > 128){
+        return 255 << 23;
+    } else {
+        if (x < -126){
+            return 1 << (x + 149);
+        } else {
+            return (x + 127) << 23;
+        }
+    }
 }
